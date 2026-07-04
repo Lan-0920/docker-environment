@@ -10,7 +10,8 @@ ENV TZ=Asia/Taipei
 RUN touch /var/mail/ubuntu && chown ubuntu /var/mail/ubuntu || true && \
     userdel -r ubuntu || true
 
-ARG USERNAME=myuser
+
+ARG USERNAME=jane
 ARG USER_UID=1000
 ARG USER_GID=1000
 
@@ -85,11 +86,11 @@ COPY --from=systemc_provider /opt/systemc-2.3.4 /opt/systemc-2.3.4
 COPY eman.sh /usr/local/bin/eman
 RUN chmod +x /usr/local/bin/eman
 
-# 3. set environment variables
+# 3. set environment variables 
 ENV SYSTEMC_HOME=/opt/systemc-2.3.4
 ENV LD_LIBRARY_PATH=$SYSTEMC_HOME/lib-linux64
 
-USER myuser
-WORKDIR /home/myuser
+USER $USERNAME
+WORKDIR /home/$USERNAME
 
 CMD ["/bin/bash"]
