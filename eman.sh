@@ -1,7 +1,9 @@
+#!/bin/bash
+
 # ==============================================================================
 # 1. basic settings
 # ==============================================================================
-WORKSPACE_DIR="/home/myuser/environment-Jane"
+WORKSPACE_DIR="/home/jane/environment-Jane"
 LAB_DIR="${WORKSPACE_DIR}/lab-0-tutorial"
 
 # C/C++ root path for example programs
@@ -68,8 +70,6 @@ case "$1" in
         echo "[INFO] Trying to switch default Verilator version to: $VERSION ..."
         
         # Implement version switching logic:
-        # If the user specifies a system-installed apt version, point to /usr/bin/verilator
-        # If it's a manually compiled version under /opt/, create a symbolic link
         if [ "$VERSION" == "apt" ] || [ "$VERSION" == "default" ]; then
             sudo ln -sf /usr/bin/verilator /usr/local/bin/verilator
             echo "[SUCCESS] Successfully switched Verilator back to the Ubuntu package version."
@@ -82,7 +82,6 @@ case "$1" in
         else
             echo "[WARNING] Version [${VERSION}] not found in /opt/verilator/."
             echo "[INFO] Trying to check or install the specified version via apt..."
-            # Attempt to install the version using the package manager
             sudo apt-get update && sudo apt-get install -y --no-install-recommends verilator
             sudo ln -sf /usr/bin/verilator /usr/local/bin/verilator
         fi
@@ -122,6 +121,5 @@ case "$1" in
         help
         ;;
 esac
-
 
 
