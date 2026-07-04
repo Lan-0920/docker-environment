@@ -2,14 +2,15 @@
 # Stage 1: Base 
 # ==============================================================================
 FROM ubuntu:26.04 AS base
-
+# set noninteractive mode for apt-get to avoid prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
+# set timezone to Asia/Taipei
 ENV TZ=Asia/Taipei
 
 RUN touch /var/mail/ubuntu && chown ubuntu /var/mail/ubuntu || true && \
     userdel -r ubuntu || true
 
-ARG USERNAME=jane
+ARG USERNAME=myuser
 ARG USER_UID=1000
 ARG USER_GID=1000
 
@@ -46,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gperf \       
     flex \        
     bison \ 
-    file \      
+    file \
     libtool \
     help2man \
     bc \
@@ -77,17 +78,18 @@ RUN git clone https://github.com/accellera-official/systemc.git \
 # ==============================================================================
 FROM common_pkg_provider AS release
 
-# 1. COPY SystemC
+# 1. copy systemc from systemc_provider stage to release stage
 COPY --from=systemc_provider /opt/systemc-2.3.4 /opt/systemc-2.3.4
-# 2. COPY eman
-COPY eman /usr/local/bin/eman
+
+# 2. copy and rename the frontend management tool eman.sh to the container's system tool eman
+COPY eman.sh /usr/local/bin/eman
 RUN chmod +x /usr/local/bin/eman
 
-# 3. Set Environment Variables
+# 3. set environment variables
 ENV SYSTEMC_HOME=/opt/systemc-2.3.4
 ENV LD_LIBRARY_PATH=$SYSTEMC_HOME/lib-linux64:$LD_LIBRARY_PATH
 
-USER jane
-WORKDIR /home/jane
+USER myuser
+WORKDIR /home/myuser
 
 CMD ["/bin/bash"]
