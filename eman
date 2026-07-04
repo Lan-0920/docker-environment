@@ -49,7 +49,7 @@ case "$1" in
             echo "-> Running make run to start Verilator translation and C++ simulation..."
             make run
             
-            # check if wave.vcd is generated
+            # Check if wave.vcd is generated
             if [ -f "wave.vcd" ]; then
                 echo "[SUCCESS] Verilator simulation successful! Waveform file generated: wave.vcd"
             else
@@ -72,7 +72,7 @@ case "$1" in
         
         echo "[INFO] Trying to switch default Verilator version to: $VERSION ..."
         # Because we are using the stable version built into apt at the OS level (Ubuntu 26.04),
-        # we can only check if the specified version is already installed or not. If not, we will provide guidance for manual installation.
+        # we can only check if the specified version is already installed or not. If not, we will inform the user that it is not available.
         CURRENT_VER=$(verilator --version | awk '{print $2}')
         if [[ "$VERSION" == *"$CURRENT_VER"* ]]; then
             echo "[INFO] System's default version is already $CURRENT_VER, no need to switch."
@@ -83,7 +83,32 @@ case "$1" in
         fi
         ;;
 
-   
+    c-compiler-version)
+        echo "[INFO] Checking C compiler and GNU Make versions..."
+        if command -v gcc &> /dev/null && command -v make &> /dev/null; then
+            echo "C Compiler: $(gcc --version | head -n 1)"
+            echo "GNU Make  : $(make --version | head -n 1)"
+        else
+            echo "[ERROR] Core compilation tools gcc or make are missing from the system!"
+            exit 1
+        fi
+        ;;
+
+    c-compiler-example)
+        echo "[INFO] Preparing to compile and run C/C++ example(s)..."
+        if [ -d "$C_EXAMPLE_DIR" ]; then
+            cd "$C_EXAMPLE_DIR"
+            echo "-> Running make clean to remove old build artifacts..."
+            make clean
+            echo "-> Running make run to start compilation and print memory addresses..."
+            make run
+            echo "[SUCCESS] C language example compilation and execution test completed!"
+        else
+            echo "[ERROR] C example directory not found, please ensure the repository is correctly cloned!"
+            echo "Expected path: $C_EXAMPLE_DIR"
+            exit 1
+        fi
+        ;;
 
     help|*)
         help
