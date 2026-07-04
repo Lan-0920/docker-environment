@@ -1,9 +1,7 @@
-#!/bin/bash
-
 # ==============================================================================
 # 1. basic settings
 # ==============================================================================
-WORKSPACE_DIR="/home/jane/environment-Jane"
+WORKSPACE_DIR="/home/jane"
 LAB_DIR="${WORKSPACE_DIR}/lab-0-tutorial"
 
 # C/C++ root path for example programs
@@ -63,27 +61,82 @@ case "$1" in
         VERSION=$2
         if [ -z "$VERSION" ]; then
             echo "[ERROR] Syntax error! Please specify the version number to switch to."
-            echo "Usage example: eman change-verilator v5.028"
+            echo "Usage example: eman change-verilator v5.034"
             exit 1
         fi
-        
-        echo "[INFO] Trying to switch default Verilator version to: $VERSION ..."
-        
-        # Implement version switching logic:
-        if [ "$VERSION" == "apt" ] || [ "$VERSION" == "default" ]; then
-            sudo ln -sf /usr/bin/verilator /usr/local/bin/verilator
-            echo "[SUCCESS] Successfully switched Verilator back to the Ubuntu package version."
-        elif [ -f "/opt/verilator/${VERSION}/bin/verilator" ]; then
-            sudo ln -sf /opt/verilator/${VERSION}/bin/verilator /usr/local/bin/verilator
-            echo "[SUCCESS] Successfully switched! Current default Verilator points to: /opt/verilator/${VERSION}"
-        elif [ -f "/opt/verilator/bin/verilator" ] && [ "$VERSION" == "v5.028" ]; then
-            sudo ln -sf /opt/verilator/bin/verilator /usr/local/bin/verilator
-            echo "[SUCCESS] Successfully switched! Current default Verilator points to: /opt/verilator (v5.028)"
+
+        # normalize the version string to ensure it starts with 'v'
+        if [[ ! "$VERSION" =~ ^v[0-9] ]]; then
+            TARGET_VERSION="v${VERSION}"
         else
-            echo "[WARNING] Version [${VERSION}] not found in /opt/verilator/."
-            echo "[INFO] Trying to check or install the specified version via apt..."
-            sudo apt-get update && sudo apt-get install -y --no-install-recommends verilator
-            sudo ln -sf /usr/bin/verilator /usr/local/bin/verilator
+            TARGET_VERSION="${VERSION}"
+        fi
+        
+        echo "[INFO] Trying to switch default Verilator version to: $TARGET_VERSION ..."
+        TARGET_DIR="/opt/verilator/${TARGET_VERSION}"
+        
+        # Check if the target version is already installed
+        if [ ! -f "${TARGET_DIR}/bin/verilator" ]; then
+            echo "[WARNING] Version [${TARGET_VERSION}] is not installed in /opt/verilator/."
+            echo "[INFO] Automatically starting download and compilation process for ${TARGET_VERSION}..."
+            
+            # build directory for Verilator compilation
+            BUILD_DIR="/tmp/verilator_build_${TARGET_VERSION}"
+            sudo rm -rf "$BUILD_DIR"
+            mkdir -p "$BUILD_DIR"
+            
+            # copy the source code of Verilator from GitHub
+            echo "-> Cloning Verilator repository (${TARGET_VERSION})..."
+            git clone https://github.com/verilator/verilator.git "$BUILD_DIR/verilator"
+            
+            if [ $? -ne 0 ] || [ ! -d "$BUILD_DIR/verilator" ]; then
+                echo "[ERROR] Failed to clone Verilator repository. Check internet connection."
+                exit 1
+            fi
+            
+            cd "$BUILD_DIR/verilator"
+            echo "-> Checking out tag ${TARGET_VERSION}..."
+            git checkout "$TARGET_VERSION" 2>/dev/null
+            if [ $? -ne 0 ]; then
+                echo "[ERROR] Version [${TARGET_VERSION}] does not exist on Verilator GitHub tags!"
+                echo "Please check the version number (e.g., v5.034, v5.028)."
+                exit 1
+            fi
+            
+            # start the compilation and installation process
+            echo "-> Running autoconf & configure..."
+            unset VERILATOR_ROOT
+            autoconf
+            
+            # avoid using -Werror to prevent compilation errors due to warnings
+            ./configure --prefix="$TARGET_DIR" CXXFLAGS="-std=c++17 -fpermissive -Wno-error"
+            
+            echo "-> Compiling Verilator using $(nproc) cores (this may take a few minutes)..."
+            make -j$(nproc)
+            if [ $? -ne 0 ]; then
+                echo "[ERROR] Compilation failed during 'make'."
+                exit 1
+            fi
+            
+            echo "-> Installing into ${TARGET_DIR}..."
+            sudo make install
+            if [ $? -ne 0 ]; then
+                echo "[ERROR] Installation failed during 'make install'."
+                exit 1
+            fi
+            
+            # clean up the build directory after successful installation
+            sudo rm -rf "$BUILD_DIR"
+            echo "[SUCCESS] ${TARGET_VERSION} has been successfully compiled and installed!"
+        fi
+        
+        # create symbolic link to switch default Verilator version
+        if [ -f "${TARGET_DIR}/bin/verilator" ]; then
+            sudo ln -sf "${TARGET_DIR}/bin/verilator" /usr/local/bin/verilator
+            echo "[SUCCESS] Successfully switched! Current default Verilator points to: ${TARGET_DIR}"
+        else
+            echo "[ERROR] Critical error: Installation verified but binary still missing."
+            exit 1
         fi
         
         echo -n "-> Current default version is: "
@@ -121,5 +174,3 @@ case "$1" in
         help
         ;;
 esac
-
-
