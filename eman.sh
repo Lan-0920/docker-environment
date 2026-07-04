@@ -1,7 +1,7 @@
 # ==============================================================================
 # 1. basic settings
 # ==============================================================================
-WORKSPACE_DIR="/home/jane/environment-Jane"
+WORKSPACE_DIR="/home/myuser/environment-Jane"
 LAB_DIR="${WORKSPACE_DIR}/lab-0-tutorial"
 
 # C/C++ root path for example programs
