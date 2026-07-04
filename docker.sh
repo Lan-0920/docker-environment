@@ -5,9 +5,9 @@
 # ==============================================================================
 IMAGE_NAME="aoc2026-env"
 TAG="lab1"
-CONTAINER_NAME="aoc2026-container-myuser"
-USERNAME="myuser"
-HOSTNAME="aislab-myuser"
+CONTAINER_NAME="aoc2026-container-jane"
+USERNAME="jane"
+HOSTNAME="aislab-jane"
 
 # array to hold multiple mount paths
 MOUNT_PATHS=()
@@ -22,22 +22,19 @@ show_help() {
     echo "  $0 rebuild           - delete and rebuild the image"
     echo ""
     echo "[run] options:"
-    echo "  --username <name>    - specify the username inside the container (default: myuser)"
+    echo "  --username <name>    - specify the username inside the container (default: jane)"
     echo "  --image-name <name>  - specify the Docker image name (default: aoc2026-env)"
-    echo "  --cont-name <name>   - specify the Container name (default: aoc2026-container-myuser)"
-    echo "  --hostname <name>    - specify the container's hostname (default: aislab-myuser)"
+    echo "  --cont-name <name>   - specify the Container name (default: aoc2026-container-jane)"
+    echo "  --hostname <name>    - specify the container's hostname (default: aislab-jane)"
     echo "  --mount <path>       - specify the local path to bind mount into the container (can be used multiple times)"
 }
 
 # ==============================================================================
 # read command line arguments
 # ==============================================================================
-# read the first argument as the command (build, run, clean, rebuild)
 COMMAND=$1
-# shift the arguments so that $@ contains only the options for the command
 shift 
 
-# start parsing the remaining arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --username)
@@ -57,7 +54,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         --mount)
-            MOUNT_PATHS+=("$2") # append the mount path to the array
+            MOUNT_PATHS+=("$2")
             shift 2
             ;;
         -h|--help)
@@ -72,7 +69,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# combine image name and tag to form the full image identifier
 FULL_IMAGE="${IMAGE_NAME}:${TAG}"
 
 # ==============================================================================
@@ -83,58 +79,47 @@ FULL_IMAGE="${IMAGE_NAME}:${TAG}"
 build_image() {
     if [ "$(docker images -q ${FULL_IMAGE} 2> /dev/null)" != "" ]; then
         echo "[info] Docker image '${FULL_IMAGE}' already exists!"
-        echo "[info] if you want to delete it, run: $0 clean --image-name ${IMAGE_NAME} --cont-name ${CONTAINER_NAME}"
+        echo "[info] If you want to force rebuild, run: $0 rebuild"
     else
-        echo "[ongoing] Building image '${FULL_IMAGE}'..."
-        # set the USERNAME argument for the Dockerfile
+        echo "[ongoing] Building image '${FULL_IMAGE}' with username '${USERNAME}'..."
         docker build --build-arg USERNAME=${USERNAME} -t ${FULL_IMAGE} .
     fi
 }
 
 # 2. Run Container 
 run_container() {
-    # make sure the image exists, if not, build it
     if [ "$(docker images -q ${FULL_IMAGE} 2> /dev/null)" == "" ]; then
         echo "[info] Docker image '${FULL_IMAGE}' not found, automatically starting build process..."
         build_image
     fi
 
-    # check the status of the container: running, stopped, or not existed
     local status
     status=$(docker inspect -f '{{.State.Running}}' ${CONTAINER_NAME} 2>/dev/null)
 
     if [ "$status" == "true" ]; then
-        # status: running -> enter container
         echo "[info] Container '${CONTAINER_NAME}' is running. Logging in..."
         docker exec -it ${CONTAINER_NAME} //bin/bash
 
     elif [ "$status" == "false" ]; then
-        # status: stopped -> start container and enter
         echo "[info] Container '${CONTAINER_NAME}' is stopped. Starting and logging in..."
         docker start ${CONTAINER_NAME}
         docker exec -it ${CONTAINER_NAME} //bin/bash
     else
-        # status: not existed -> create container and enter
-        echo "[info] Container '${CONTAINER_NAME}' does not exist. Dynamically configuring parameters and creating new container..."
+        echo "[info] Container '${CONTAINER_NAME}' does not exist. Creating new container..."
         
-        # create base command
-        local run_cmd="docker run -it --name ${CONTAINER_NAME} --hostname ${HOSTNAME}"
         
-        # configure mount points
-        # put the mount paths into the container's home directory, using the folder name as the target
+        local run_cmd="docker run -it --name ${CONTAINER_NAME} --hostname ${HOSTNAME} -u ${USERNAME}"
+        
         for path in "${MOUNT_PATHS[@]}"; do
-            # get the absolute path of the local folder
             local abs_path
-            abs_path=$(cd "$path" 2>/dev/null && pwd || echo "$path")
+            abs_path=$(cd "$path" 2>/dev/null && pwd -W 2>/dev/null || (cd "$path" 2>/dev/null && pwd) || echo "$path")
             local folder_name=$(basename "$abs_path")
             
             run_cmd+=" -v ${abs_path}:/home/${USERNAME}/${folder_name}"
             echo "-> Configuring mount point: ${abs_path} -> /home/${USERNAME}/${folder_name}"
         done
         
-        # add the image and command to run inside the container
         run_cmd+=" ${FULL_IMAGE} //bin/bash"
-        # run the command to create and enter the container
         eval $run_cmd
     fi
 }
@@ -142,18 +127,25 @@ run_container() {
 # 3. Clean 
 clean_all() {
     echo "[info] Starting to clean the specified environment..."
+    
+    # 1. remove the container if it exists
     if [ "$(docker ps -a -q -f name=${CONTAINER_NAME})" != "" ]; then
         echo "-> Stopping and removing container: ${CONTAINER_NAME}"
-        docker stop ${CONTAINER_NAME} 2>/dev/null
-        docker rm ${CONTAINER_NAME} 2>/dev/null
+        docker rm -f ${CONTAINER_NAME} 2>/dev/null
+    fi
+    if [ "$(docker ps -a -q -f name=aoc2026-container-myuser)" != "" ]; then
+        echo "-> Removing old residual container: aoc2026-container-myuser"
+        docker rm -f aoc2026-container-myuser 2>/dev/null
     fi
 
+    # 2. remove the image if it exists
     if [ "$(docker images -q ${FULL_IMAGE} 2> /dev/null)" != "" ]; then
-        echo "-> Removing image: ${FULL_IMAGE}"
-        docker rmi ${FULL_IMAGE} 2>/dev/null
+        echo "-> Forcing removal of image: ${FULL_IMAGE}"
+        docker rmi -f ${FULL_IMAGE} 2>/dev/null
     fi
     echo "[info] Cleanup completed!"
 }
+
 # ==============================================================================
 # main logic to handle the command
 # ==============================================================================
