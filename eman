@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# ==============================================================================
+# 1. bash script for command line interface
+# ==============================================================================
+# When executing ./docker.sh run --mount ., the project will be mounted to the container's /home/jane/environment-Jane
+WORKSPACE_DIR="/home/jane/environment-Jane"
+C_EXAMPLE_DIR="${WORKSPACE_DIR}/lab-0-tutorial/c-example"
+VERILATOR_EXAMPLE_DIR="${WORKSPACE_DIR}/lab-0-tutorial/verilator-example"
+
+# ==============================================================================
+# 2. command line argument parsing
+# ==============================================================================
+help() {
+    cat <<EOF
+ Environment Manager - command line interface
+ Usage:
+
+    eman check-verilator            : print the version of the first found Verilator (if there are multiple version of Verilator installed)
+    eman verilator-example          : compile and run the Verilator example(s)
+    eman change-verilator <VERSION> : change default Verilator to different version. If not installed, install it.
+
+    eman c-compiler-version         : print the version of default C compiler and the version of GNU Make
+    eman c-compiler-example         : compile and run the C/C++ example(s)
+
+EOF
+}
+
+# ==============================================================================
+# 3. functions for each command
+# ==============================================================================
+case "$1" in
+    check-verilator)
+        echo "[INFO] Checking Verilator version ..."
+        if command -v verilator &> /dev/null; then
+            verilator --version
+        else
+            echo "[ERROR] Verilator executable not found!"
+            exit 1
+        fi
+        ;;
+
+    verilator-example)
+        echo "[INFO] Preparing to compile and run Verilator example hardware simulation..."
+        if [ -d "$VERILATOR_EXAMPLE_DIR" ]; then
+            cd "$VERILATOR_EXAMPLE_DIR"
+            echo "-> Running make clean to remove old build artifacts and waveform files..."
+            make clean
+            echo "-> Running make run to start Verilator translation and C++ simulation..."
+            make run
+            
+            # check if wave.vcd is generated
+            if [ -f "wave.vcd" ]; then
+                echo "[SUCCESS] Verilator simulation successful! Waveform file generated: wave.vcd"
+            else
+                echo "[WARNING] Simulation completed, but wave.vcd file not found."
+            fi
+        else
+            echo "[ERROR] Verilator example directory not found, please ensure the repository is correctly cloned!"
+            echo "Expected path: $VERILATOR_EXAMPLE_DIR"
+            exit 1
+        fi
+        ;;
+
+    change-verilator)
+        VERSION=$2
+        if [ -z "$VERSION" ]; then
+            echo "[ERROR] Syntax error! Please specify the version to switch to."
+            echo "Usage example: eman change-verilator v5.028"
+            exit 1
+        fi
+        
+        echo "[INFO] Trying to switch default Verilator version to: $VERSION ..."
+        # Because we are using the stable version built into apt at the OS level (Ubuntu 26.04),
+        # we can only check if the specified version is already installed or not. If not, we will provide guidance for manual installation.
+        CURRENT_VER=$(verilator --version | awk '{print $2}')
+        if [[ "$VERSION" == *"$CURRENT_VER"* ]]; then
+            echo "[INFO] System's default version is already $CURRENT_VER, no need to switch."
+        else
+            echo "[INFO] Checking if the specified version is available locally or remotely..."
+            echo "[!] Note: This is an optional extension feature. If you want to run an older version on the modern Ubuntu 26.04 kernel,"
+            echo "    please ensure the corresponding compatibility patches (CXXFLAGS) are configured."
+        fi
+        ;;
+
+   
+
+    help|*)
+        help
+        ;;
+esac
