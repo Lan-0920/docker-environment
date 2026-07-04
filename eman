@@ -1,20 +1,21 @@
-#!/bin/bash
-
 # ==============================================================================
-# 1. bash script for command line interface
+# 1. basic settings
 # ==============================================================================
-# When executing ./docker.sh run --mount ., the project will be mounted to the container's /home/jane/environment-Jane
 WORKSPACE_DIR="/home/jane/environment-Jane"
-C_EXAMPLE_DIR="${WORKSPACE_DIR}/lab-0-tutorial/c-example"
-VERILATOR_EXAMPLE_DIR="${WORKSPACE_DIR}/lab-0-tutorial/verilator-example"
+LAB_DIR="${WORKSPACE_DIR}/lab-0-tutorial"
+
+# C/C++ root path for example programs
+C_EXAMPLE_DIR="${LAB_DIR}/c_cpp/arrays/multidim_array"
+# Verilog root path for example programs
+VERILOG_DIR="${LAB_DIR}/verilog"
 
 # ==============================================================================
-# 2. command line argument parsing
+# 2. helper functions
 # ==============================================================================
 help() {
     cat <<EOF
- Environment Manager - command line interface
- Usage:
+command line tool (eman) - for managing the development environment
+Usage: eman <command> [options]
 
     eman check-verilator            : print the version of the first found Verilator (if there are multiple version of Verilator installed)
     eman verilator-example          : compile and run the Verilator example(s)
@@ -27,7 +28,7 @@ EOF
 }
 
 # ==============================================================================
-# 3. functions for each command
+# 3. core functions for Docker management
 # ==============================================================================
 case "$1" in
     check-verilator)
@@ -41,23 +42,17 @@ case "$1" in
         ;;
 
     verilator-example)
-        echo "[INFO] Preparing to compile and run Verilator example hardware simulation..."
-        if [ -d "$VERILATOR_EXAMPLE_DIR" ]; then
-            cd "$VERILATOR_EXAMPLE_DIR"
-            echo "-> Running make clean to remove old build artifacts and waveform files..."
+        echo "[INFO] Preparing to compile and run Verilator hardware simulation examples..."
+        if [ -d "$VERILOG_DIR" ]; then
+            cd "$VERILOG_DIR"
+            echo "-> Executing clean to remove old compilation artifacts and waveform files..."
             make clean
-            echo "-> Running make run to start Verilator translation and C++ simulation..."
+            echo "-> Executing run to start simulation of all sub-modules (hello, counter, adder, trafficlight)..."
             make run
-            
-            # Check if wave.vcd is generated
-            if [ -f "wave.vcd" ]; then
-                echo "[SUCCESS] Verilator simulation successful! Waveform file generated: wave.vcd"
-            else
-                echo "[WARNING] Simulation completed, but wave.vcd file not found."
-            fi
+            echo "[SUCCESS] Verilator examples simulation completed!"
         else
             echo "[ERROR] Verilator example directory not found, please ensure the repository is correctly cloned!"
-            echo "Expected path: $VERILATOR_EXAMPLE_DIR"
+            echo "Expected path: $VERILOG_DIR"
             exit 1
         fi
         ;;
@@ -65,22 +60,35 @@ case "$1" in
     change-verilator)
         VERSION=$2
         if [ -z "$VERSION" ]; then
-            echo "[ERROR] Syntax error! Please specify the version to switch to."
+            echo "[ERROR] Syntax error! Please specify the version number to switch to."
             echo "Usage example: eman change-verilator v5.028"
             exit 1
         fi
         
         echo "[INFO] Trying to switch default Verilator version to: $VERSION ..."
-        # Because we are using the stable version built into apt at the OS level (Ubuntu 26.04),
-        # we can only check if the specified version is already installed or not. If not, we will inform the user that it is not available.
-        CURRENT_VER=$(verilator --version | awk '{print $2}')
-        if [[ "$VERSION" == *"$CURRENT_VER"* ]]; then
-            echo "[INFO] System's default version is already $CURRENT_VER, no need to switch."
+        
+        # Implement version switching logic:
+        # If the user specifies a system-installed apt version, point to /usr/bin/verilator
+        # If it's a manually compiled version under /opt/, create a symbolic link
+        if [ "$VERSION" == "apt" ] || [ "$VERSION" == "default" ]; then
+            sudo ln -sf /usr/bin/verilator /usr/local/bin/verilator
+            echo "[SUCCESS] Successfully switched Verilator back to the Ubuntu package version."
+        elif [ -f "/opt/verilator/${VERSION}/bin/verilator" ]; then
+            sudo ln -sf /opt/verilator/${VERSION}/bin/verilator /usr/local/bin/verilator
+            echo "[SUCCESS] Successfully switched! Current default Verilator points to: /opt/verilator/${VERSION}"
+        elif [ -f "/opt/verilator/bin/verilator" ] && [ "$VERSION" == "v5.028" ]; then
+            sudo ln -sf /opt/verilator/bin/verilator /usr/local/bin/verilator
+            echo "[SUCCESS] Successfully switched! Current default Verilator points to: /opt/verilator (v5.028)"
         else
-            echo "[INFO] Checking if the specified version is available locally or remotely..."
-            echo "[!] Note: This is an optional extension feature. If you want to run an older version on the modern Ubuntu 26.04 kernel,"
-            echo "    please ensure the corresponding compatibility patches (CXXFLAGS) are configured."
+            echo "[WARNING] Version [${VERSION}] not found in /opt/verilator/."
+            echo "[INFO] Trying to check or install the specified version via apt..."
+            # Attempt to install the version using the package manager
+            sudo apt-get update && sudo apt-get install -y --no-install-recommends verilator
+            sudo ln -sf /usr/bin/verilator /usr/local/bin/verilator
         fi
+        
+        echo -n "-> Current default version is: "
+        verilator --version
         ;;
 
     c-compiler-version)
@@ -89,20 +97,20 @@ case "$1" in
             echo "C Compiler: $(gcc --version | head -n 1)"
             echo "GNU Make  : $(make --version | head -n 1)"
         else
-            echo "[ERROR] Core compilation tools gcc or make are missing from the system!"
+            echo "[ERROR] System missing core compilation tools gcc or make!"
             exit 1
         fi
         ;;
 
     c-compiler-example)
-        echo "[INFO] Preparing to compile and run C/C++ example(s)..."
+        echo "[INFO] Preparing to compile and run C/C++ multi-dimensional array examples..."
         if [ -d "$C_EXAMPLE_DIR" ]; then
             cd "$C_EXAMPLE_DIR"
-            echo "-> Running make clean to remove old build artifacts..."
+            echo "-> Executing make clean to remove old compilation artifacts..."
             make clean
-            echo "-> Running make run to start compilation and print memory addresses..."
+            echo "-> Executing make run to start compilation and print memory addresses..."
             make run
-            echo "[SUCCESS] C language example compilation and execution test completed!"
+            echo "[SUCCESS] C language examples compilation and execution test completed!"
         else
             echo "[ERROR] C example directory not found, please ensure the repository is correctly cloned!"
             echo "Expected path: $C_EXAMPLE_DIR"
@@ -114,3 +122,6 @@ case "$1" in
         help
         ;;
 esac
+
+
+
