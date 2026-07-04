@@ -5,9 +5,9 @@
 # ==============================================================================
 IMAGE_NAME="aoc2026-env"
 TAG="lab1"
-CONTAINER_NAME="aoc2026-container-jane"
-USERNAME="jane"
-HOSTNAME="aislab-jane"
+CONTAINER_NAME="aoc2026-container-myuser"
+USERNAME="myuser"
+HOSTNAME="aislab-myuser"
 
 # array to hold multiple mount paths
 MOUNT_PATHS=()
@@ -22,10 +22,10 @@ show_help() {
     echo "  $0 rebuild           - delete and rebuild the image"
     echo ""
     echo "[run] options:"
-    echo "  --username <name>    - specify the username inside the container (default: jane)"
+    echo "  --username <name>    - specify the username inside the container (default: myuser)"
     echo "  --image-name <name>  - specify the Docker image name (default: aoc2026-env)"
-    echo "  --cont-name <name>   - specify the Container name (default: aoc2026-container-jane)"
-    echo "  --hostname <name>    - specify the container's hostname (default: aislab-jane)"
+    echo "  --cont-name <name>   - specify the Container name (default: aoc2026-container-myuser)"
+    echo "  --hostname <name>    - specify the container's hostname (default: aislab-myuser)"
     echo "  --mount <path>       - specify the local path to bind mount into the container (can be used multiple times)"
 }
 
@@ -134,12 +134,12 @@ run_container() {
         
         # add the image and command to run inside the container
         run_cmd+=" ${FULL_IMAGE} //bin/bash"
-        # 執行最終組合出來的指令
+        # run the command to create and enter the container
         eval $run_cmd
     fi
 }
 
-# 3. Clean 功能
+# 3. Clean 
 clean_all() {
     echo "[info] Starting to clean the specified environment..."
     if [ "$(docker ps -a -q -f name=${CONTAINER_NAME})" != "" ]; then
