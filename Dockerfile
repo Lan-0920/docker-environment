@@ -87,7 +87,7 @@ RUN chmod +x /usr/local/bin/eman
 
 # 3. set environment variables
 ENV SYSTEMC_HOME=/opt/systemc-2.3.4
-ENV LD_LIBRARY_PATH=$SYSTEMC_HOME/lib-linux64:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=$SYSTEMC_HOME/lib-linux64
 
 USER myuser
 WORKDIR /home/myuser
