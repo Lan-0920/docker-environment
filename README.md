@@ -86,7 +86,7 @@ $./docker.sh clean --username jane
 - **Smart Container Re-use**: 
 Automatically detects container status. If it is already `running`, it logs in via `exec`; if `stopped/exited`, it executes `start` before logging in; if non-existent, it creates a new one.
 - **Dynamic Multi-Mount Resolution**: 
-Supports passing the `--mount` flag multiple times[cite: 1]. It automatically resolves relative paths to absolute paths and links them to `/home/${USERNAME}/${folder_name}` inside the environment.
+Supports passing the `--mount` flag multiple times. It automatically resolves relative paths to absolute paths and links them to `/home/${USERNAME}/${folder_name}` inside the environment.
 - **Host-Container Permission Alignment**: 
 Pass host user’s UID and GID (`id -u` / `id -g`) during build and run phases to prevent workspace root file permission conflicts.
 - **Residual Cleanup**: 
@@ -109,7 +109,7 @@ $./docker.sh run --mount ./lab-0-tutorial
 
 - print the version of the first found Verilator 
     ```
-    eman check-verilator            
+    $eman check-verilator            
     ```
 - compile and run the Verilator example
     ```
