@@ -79,7 +79,9 @@ FROM common_pkg_provider AS release
 
 # 1. COPY SystemC
 COPY --from=systemc_provider /opt/systemc-2.3.4 /opt/systemc-2.3.4
-
+# 2. COPY eman
+COPY eman /usr/local/bin/eman
+RUN chmod +x /usr/local/bin/eman
 
 # 3. Set Environment Variables
 ENV SYSTEMC_HOME=/opt/systemc-2.3.4
